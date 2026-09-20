@@ -171,16 +171,106 @@
 - Детерминированный режим: check даёт предсказуемый вывод; --seed воспроизводим. 
 - Логика интерфейса отделена от игровой логики: Menu знает только про ввод-вывод, GameRules — только про правила.
 
+
+## Бонусы
+
+### Уровни сложности
+
+- `Difficulty` — три уровня: `EASY` (8 попыток), `NORMAL` (6), `HARD` (4).
+- `GameFactory.startGame(dictionary, difficulty, seed)` — перегрузка, старая сигнатура с `int maxAttempts` не тронута.
+- В меню пункт «3 — сложность», текущий уровень показывается в заголовке.
+
+### Цветной вывод
+
+- ANSI-цвета для ✅ / 🟡 / ❌: зелёный, жёлтый, красный.
+- `ConsoleView.setColorEnabled(boolean)` — ручное управление.
+- `ConsoleView.autoDetectColor()` — включает цвет, только если stdout —
+  настоящий терминал (`System.console() != null`) и нет переменной
+  окружения `NO_COLOR`.
+- В детерминированном режиме (`check`, `--seed`, `replay`) цвет выключен,
+  поэтому автопроверка видит чистый текст.
+
+### Статистика сессии
+
+- `SessionStats` — счётчики за один запуск программы:
+  `gamesPlayed`, `wins`, `losses`, `totalAttempts`, `bestAttempts`,
+  `averageAttempts()`.
+- `record(GameSession)` игнорирует незавершённые партии.
+- `Menu` вызывает `record` после каждой завершённой игры.
+- В меню пункт «4 — статистика».
+
+### Replay по seed и попыткам
+
+- Команда `replay --seed N <guess1> <guess2> ...`:
+    - восстанавливает партию по seed;
+    - последовательно применяет попытки;
+    - печатает результат каждой попытки;
+    - останавливается на `WIN`/`LOSE`.
+- Вывод детерминирован: одинаковые аргументы → одинаковый вывод.
+- Некорректные слова не роняют программу — печатается «Пропуск ...».
+
+### Категории слов
+
+- Три категории: `животные`, `еда`, `природа`.
+- Файлы: `dictionary.animals.txt`, `dictionary.food.txt`,
+  `dictionary.nature.txt` в `src/main/resources/`.
+- В меню пункт «5 — категория».
+
+### Подсказки к словам
+
+- Формат словаря: `слово|подсказка`.
+- Для основного словаря подсказки лежат отдельно в
+  `dictionary.hints.txt` — `TemplateSmokeTest` читает `dictionary.txt`
+  напрямую и ждёт чистые слова без `|`.
+- Для категорий подсказки пишутся прямо в файле: `мышка|маленький грызун`.
+- `Dictionary.hint(word)` возвращает подсказку или `null`,
+  `hasHint(word)` — `boolean`.
+- В игре, если у загаданного слова есть подсказка, печатается
+  `Можно ввести '?' для подсказки.`, по `?` показывается текст
+  или `Подсказки нет.`.
+- Подсказка не тратит попытку.
+
+## Тесты
+
+Обязательные тесты в `src/test/java/academy/fiveletters/mandatory/`:
+
+- `mandatory/mr1/` — словарь, seed, модель сессии.
+- `mandatory/mr2/` — валидация, раскраска, финалы.
+- `mandatory/mr3/` — меню, детерминированный режим.
+
+Бонусные тесты в `src/test/java/academy/fiveletters/bonus/`:
+
+- `DifficultyTest` — попытки по уровням, LOSE после HARD.
+- `ColorTest` — ANSI вкл/выкл.
+- `SessionStatsTest` — пустая статистика, накопление, IN_PROGRESS.
+- `ReplayTest` — детерминированность replay.
+- `CategoriesTest` — три категории, ≥10 слов по 5 букв, не совпадают.
+- `HintTest` — `hint`/`hasHint`, регистр, загрузка из ресурсов.
+
+
 ## Запуск
-  ```bash
-  ./gradlew test       
-  ./gradlew check   
-  ./gradlew spotlessApply 
+
+### Тесты
+
+```bash
+./gradlew test                 
+./gradlew check              
+./gradlew spotlessApply  
 ```
 
-## Игра
+### Игра
 ```bash
-./gradlew run
+./gradlew run                 
 ./gradlew run --args="--seed 42"
 ./gradlew run --args="check --answer озеро --guess арбуз"
+./gradlew run --args="replay --seed 42 озеро арбуз сорок"
+```
+
+### Меню
+```bash
+1 — новая игра
+2 — выход
+3 — сложность (EASY / NORMAL / HARD)
+4 — статистика
+5 — категория (общий / животные / еда / природа)
 ```

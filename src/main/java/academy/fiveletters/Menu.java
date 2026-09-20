@@ -2,15 +2,21 @@ package academy.fiveletters;
 
 import java.io.InputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 /** Консольное меню. Вся игровая логика делегируется в GameRules. */
 public final class Menu {
 
-    private final Dictionary dictionary;
+    private Dictionary dictionary;
+    private String category = "общий";
     private final Scanner in;
     private final PrintStream out;
     private Difficulty difficulty = Difficulty.NORMAL;
+    private final SessionStats stats = new SessionStats();
 
     public Menu(Dictionary dictionary, InputStream in, PrintStream out) {
         this.dictionary = dictionary;
@@ -19,9 +25,16 @@ public final class Menu {
     }
 
     public void run() {
+        ConsoleView.autoDetectColor();
         while (true) {
             printMenu();
-            String choice = in.nextLine().trim();
+            String choice;
+            try {
+                choice = in.nextLine().trim();
+            } catch (NoSuchElementException e) {
+                out.println("До встречи!");
+                return;
+            }
             switch (choice) {
                 case "1" -> playOneGame();
                 case "2" -> {
@@ -29,8 +42,45 @@ public final class Menu {
                     return;
                 }
                 case "3" -> chooseDifficulty();
+                case "4" -> printStats();
+                case "5" -> chooseCategory();
                 default -> out.println("Не понял. Введите 1 или 2.");
             }
+        }
+    }
+
+    private void chooseCategory() {
+        Map<String, Dictionary> all = DictionaryLoader.loadAll();
+        out.println("0 — общий словарь");
+        int i = 1;
+        List<String> names = new ArrayList<>(all.keySet());
+        for (String name : names) {
+            out.println(i + " — " + name);
+            i++;
+        }
+        out.print("> ");
+        String choice = in.nextLine().trim();
+        if ("0".equals(choice)) {
+            dictionary = DictionaryLoader.loadDefault();
+            category = "общий";
+            return;
+        }
+        try {
+            int idx = Integer.parseInt(choice) - 1;
+            if (idx >= 0 && idx < names.size()) {
+                String name = names.get(idx);
+                Dictionary loaded = all.get(name);
+                if (loaded != null) {
+                    dictionary = loaded;
+                } else {
+                    out.println("Категория не найдена: " + name);
+                }
+                category = name;
+            } else {
+                out.println("Не понял, оставляю " + category);
+            }
+        } catch (NumberFormatException e) {
+            out.println("Не понял, оставляю " + category);
         }
     }
 
@@ -50,11 +100,19 @@ public final class Menu {
         out.println("Сложность: " + difficulty);
     }
 
+    private void printStats() {
+        out.println("Игр: " + stats.gamesPlayed() + ", побед: " + stats.wins() + ", поражений: " + stats.losses());
+        out.printf("Среднее число попыток: %.1f%n", stats.averageAttempts());
+        out.println("Лучшая игра: " + stats.bestAttempts() + " попыток");
+    }
+
     private void printMenu() {
         out.println();
         out.println("1 — новая игра");
         out.println("2 — выход");
         out.println("3 — сложность (сейчас: " + difficulty + ")");
+        out.println("4 — статистика");
+        out.println("5 — категория (сейчас: " + category + ")");
         out.print("> ");
     }
 
@@ -62,10 +120,17 @@ public final class Menu {
         long seed = System.nanoTime();
         GameSession session = GameFactory.startGame(dictionary, difficulty, seed);
         out.println("Загадано слово из 5 букв. Попыток: " + session.getMaxAttempts());
-
+        if (dictionary.hasHint(session.getAnswer())) {
+            out.println("Можно ввести '?' для подсказки.");
+        }
         while (!session.isFinished()) {
             out.print("Ввод: ");
             String line = in.nextLine();
+            if ("?".equals(line.trim())) {
+                String hint = dictionary.hint(session.getAnswer());
+                out.println(hint == null ? "Подсказки нет." : "Подсказка: " + hint);
+                continue;
+            }
             try {
                 GuessResult result = GameRules.applyGuess(session, dictionary, line);
                 out.println(ConsoleView.formatGuess(result));
@@ -82,5 +147,6 @@ public final class Menu {
                 out.println("Игра уже завершена: " + e.getMessage());
             }
         }
+        stats.record(session);
     }
 }

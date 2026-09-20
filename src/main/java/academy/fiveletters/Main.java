@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 public final class Main {
 
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
+    private static final int DEFAULT_MAX_ATTEMPTS = 6;
 
     private Main() {}
 
@@ -29,15 +30,69 @@ public final class Main {
 
         try {
             if (args.length > 0 && "check".equals(args[0])) {
-                runCheck(args);
+                runCheck(args, System.out);
             } else if (args.length > 0 && "--seed".equals(args[0])) {
-                runSingleGame(Long.parseLong(args[1]));
+                runSingleGame(Long.parseLong(args[1]), System.out);
+            } else if (args.length > 0 && "replay".equals(args[0])) {
+                runReplay(args, System.out);
             } else {
                 runInteractive(System.in, System.out);
             }
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             LOG.error("Не удалось запустить игру", e);
             System.err.println("Ошибка: " + e.getMessage());
+        }
+    }
+
+    /** replay --seed 42 озеро арбуз сорок */
+    public static void runReplay(String[] args, PrintStream out) {
+        long seed = -1;
+        List<String> guesses = new ArrayList<>();
+
+        int i = 1;
+        while (i < args.length) {
+            if ("--seed".equals(args[i])) {
+                if (i + 1 >= args.length) {
+                    throw new IllegalArgumentException("replay: --seed требует значение");
+                }
+                seed = Long.parseLong(args[i + 1]);
+                i += 2;
+            } else {
+                guesses.add(args[i]);
+                i++;
+            }
+        }
+
+        if (seed < 0) {
+            throw new IllegalArgumentException("replay требует --seed");
+        }
+        if (guesses.isEmpty()) {
+            throw new IllegalArgumentException("replay требует хотя бы одну попытку");
+        }
+
+        Dictionary dictionary = DictionaryLoader.loadDefault();
+        GameSession session = GameFactory.startGame(dictionary, DEFAULT_MAX_ATTEMPTS, seed);
+
+        out.println("Replay: seed=" + seed + ", ответ=" + session.getAnswer());
+
+        for (String guess : guesses) {
+            GuessResult result;
+            try {
+                result = GameRules.applyGuess(session, dictionary, guess);
+            } catch (InvalidGuessException e) {
+                out.println("Пропуск \"" + guess + "\": " + e.getMessage());
+                continue;
+            }
+            out.println(ConsoleView.formatGuess(result));
+            if (result.status() == GameStatus.WIN) {
+                out.println(ConsoleView.formatWin(session));
+                return;
+            }
+            if (result.status() == GameStatus.LOSE) {
+                out.println(ConsoleView.formatLose(session));
+                return;
+            }
+            out.println(ConsoleView.formatAttemptsLeft(session));
         }
     }
 
@@ -48,44 +103,59 @@ public final class Main {
     }
 
     /** Одна игра с фиксированным seed — для отладки и тестов. */
-    public static void runSingleGame(long seed) {
+    public static void runSingleGame(long seed, PrintStream out) {
         Dictionary dictionary = DictionaryLoader.loadDefault();
-        GameSession session = GameFactory.startGame(dictionary, 6, seed);
+        GameSession session = GameFactory.startGame(dictionary, DEFAULT_MAX_ATTEMPTS, seed);
         LOG.debug("Игра с seed={}", seed);
-        System.out.print("Загадано: " + session.getAnswer());
-        System.out.print("\nПопыток: " + session.getMaxAttempts());
+        out.println("Загадано: " + session.getAnswer());
+        out.println("Попыток: " + session.getMaxAttempts());
     }
 
-    public static void runCheck(String[] args) {
+    /** check --answer озеро --guess арбуз [--guess сорок]... */
+    public static void runCheck(String[] args, PrintStream out) {
         String answer = null;
         List<String> guesses = new ArrayList<>();
 
-        for (int i = 1; i < args.length - 1; i++) {
+        int i = 1;
+        while (i < args.length) {
             switch (args[i]) {
-                case "--answer" -> answer = args[++i];
-                case "--guess" -> guesses.add(args[++i]);
+                case "--answer" -> {
+                    if (i + 1 >= args.length) {
+                        throw new IllegalArgumentException("--answer требует значение");
+                    }
+                    answer = args[i + 1];
+                    i += 2;
+                }
+                case "--guess" -> {
+                    if (i + 1 >= args.length) {
+                        throw new IllegalArgumentException("--guess требует значение");
+                    }
+                    guesses.add(args[i + 1]);
+                    i += 2;
+                }
                 default -> throw new IllegalArgumentException("Неизвестный флаг: " + args[i]);
             }
         }
+
         if (answer == null) {
             throw new IllegalArgumentException("check требует --answer");
         }
 
         Dictionary dictionary = DictionaryLoader.loadDefault();
-        GameSession session = GameFactory.startGameWithAnswer(answer, 6);
+        GameSession session = GameFactory.startGameWithAnswer(answer, DEFAULT_MAX_ATTEMPTS);
 
         for (String guess : guesses) {
             GuessResult result = GameRules.applyGuess(session, dictionary, guess);
-            System.out.println(ConsoleView.formatGuess(result));
+            out.println(ConsoleView.formatGuess(result));
             if (result.status() == GameStatus.WIN) {
-                System.out.println(ConsoleView.formatWin(session));
+                out.println(ConsoleView.formatWin(session));
                 return;
             }
             if (result.status() == GameStatus.LOSE) {
-                System.out.println(ConsoleView.formatLose(session));
+                out.println(ConsoleView.formatLose(session));
                 return;
             }
-            System.out.println(ConsoleView.formatAttemptsLeft(session));
+            out.println(ConsoleView.formatAttemptsLeft(session));
         }
     }
 }

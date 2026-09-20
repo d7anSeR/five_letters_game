@@ -2,8 +2,10 @@ package academy.fiveletters;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Словарь допустимых слов. Ограничения:
@@ -20,7 +22,13 @@ public final class Dictionary {
 
     private final List<String> words;
 
+    private final Map<String, String> hints;
+
     public Dictionary(List<String> words) {
+        this(words, Map.of());
+    }
+
+    public Dictionary(List<String> words, Map<String, String> hints) {
         Objects.requireNonNull(words, "words must not be null");
         if (words.isEmpty()) {
             throw new IllegalArgumentException("Dictionary must not be empty");
@@ -43,6 +51,16 @@ public final class Dictionary {
             unique.add(word);
         }
         this.words = List.copyOf(unique);
+        this.hints = Map.copyOf(hints);
+    }
+
+    @Nullable
+    public String hint(String word) {
+        return word == null ? null : hints.get(word.toLowerCase());
+    }
+
+    public boolean hasHint(String word) {
+        return hint(word) != null;
     }
 
     public List<String> getWords() {
@@ -58,6 +76,6 @@ public final class Dictionary {
     }
 
     private static boolean isRussianLetter(char c) {
-        return Character.UnicodeBlock.of(c) == Character.UnicodeBlock.CYRILLIC;
+        return Character.UnicodeBlock.CYRILLIC.equals(Character.UnicodeBlock.of(c));
     }
 }
