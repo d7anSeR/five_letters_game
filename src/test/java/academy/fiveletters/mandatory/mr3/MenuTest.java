@@ -1,8 +1,13 @@
 package academy.fiveletters.mandatory.mr3;
 
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.Disabled;
+import academy.fiveletters.DictionaryLoader;
+import academy.fiveletters.Menu;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -11,23 +16,40 @@ import org.junit.jupiter.api.Test;
 class MenuTest {
 
     @Test
-    @Disabled("MR3: реализуй тест и удали эту строку")
     @DisplayName("Некорректный пункт меню не роняет программу")
     void invalidMenuChoiceDoesNotCrash() {
-        fail("Тест не реализован");
+        String input = "abc\n999\n\n2\n";
+        Menu menu = new Menu(
+                DictionaryLoader.loadDefault(),
+                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
+                new PrintStream(new ByteArrayOutputStream()));
+        menu.run();
     }
 
     @Test
-    @Disabled("MR3: реализуй тест и удали эту строку")
     @DisplayName("Можно сыграть несколько партий подряд без перезапуска")
     void severalGamesInARow() {
-        fail("Тест не реализован");
+        String input = "1\n" + "озеро\n".repeat(6) + "1\n" + "арбуз\n".repeat(6) + "2\n";
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Menu menu = new Menu(
+                DictionaryLoader.loadDefault(),
+                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
+                new PrintStream(out, true, StandardCharsets.UTF_8));
+        menu.run();
+        String output = out.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("До встречи!"), "Меню должно корректно завершиться");
     }
 
     @Test
-    @Disabled("MR3: реализуй тест и удали эту строку")
     @DisplayName("Детерминированный режим даёт предсказуемый вывод для автопроверки")
     void deterministicModeProducesPredictableOutput() {
-        fail("Тест не реализован");
+        String input = "2\n";
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        Menu menu = new Menu(
+                DictionaryLoader.loadDefault(),
+                new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
+                new PrintStream(out, true, StandardCharsets.UTF_8));
+        menu.run();
+        assertTrue(out.toString(StandardCharsets.UTF_8).contains("До встречи!"));
     }
 }
