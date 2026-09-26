@@ -27,7 +27,8 @@ public final class GuessValidator {
         }
         for (int i = 0; i < guess.length(); i++) {
             char c = guess.charAt(i);
-            if (Character.UnicodeBlock.of(c) != Character.UnicodeBlock.CYRILLIC) {
+            boolean isCyrillicLetter = Character.isLetter(c);
+            if (!isCyrillicLetter) {
                 throw new InvalidGuessException("Только русские буквы: " + raw);
             }
         }

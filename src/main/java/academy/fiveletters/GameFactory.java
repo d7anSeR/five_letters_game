@@ -23,4 +23,12 @@ public final class GameFactory {
         String answer = words.get(random.nextInt(words.size()));
         return new GameSession(answer, maxAttempts);
     }
+
+    public static GameSession startGameWithAnswer(String answer, int maxAttempts) {
+        return new GameSession(answer, maxAttempts);
+    }
+
+    public static GameSession startGame(Dictionary dictionary, Difficulty difficulty, long seed) {
+        return startGame(dictionary, difficulty.maxAttempts(), seed);
+    }
 }
